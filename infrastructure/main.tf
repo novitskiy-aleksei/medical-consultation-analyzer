@@ -35,3 +35,11 @@ resource "azurerm_storage_container" "text_container" {
   storage_account_name  = azurerm_storage_account.storage_account.name
   container_access_type = "private"
 }
+
+resource "azurerm_container_registry" "stage_acr" {
+  name                     = "stageacr"
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  sku                      = "Basic"
+  admin_enabled            = true
+}
