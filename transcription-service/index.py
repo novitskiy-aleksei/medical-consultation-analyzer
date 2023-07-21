@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from azure.storage.blob import BlobServiceClient
-import os
+from azure.core.exceptions import ResourceExistsError
+import os, sys
 import whisper, openai
 import logging, json
 from dotenv import load_dotenv
@@ -8,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 # set API key for GPT
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -18,17 +19,16 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 blob_service_client = BlobServiceClient.from_connection_string(os.getenv('AZURE_BLOB_CONNECT_STRING'))
 
 # Load the whisper model
-model = whisper.load_model('base.en')
+model = whisper.load_model(os.getenv('WHISPER_MODEL_TYPE'))
 
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
     # Retrieve the parameters from the request
     recording_id = request.json.get('recording_id')
-    # language = request.json.get('language')
 
     # Download the audio file from Azure Blob Storage
-    blob_client = blob_service_client.get_blob_client("audio-container", recording_id)
+    blob_client = blob_service_client.get_blob_client("audio-container", f"{recording_id}.wav")
     with open(recording_id, 'wb') as download_file:
         download_file.write(blob_client.download_blob().readall())
 
@@ -44,8 +44,11 @@ def transcribe():
 
     transcription_text = transcription['text']
     analyzed_transcription = analyze(transcription_text)
+    analyzed_transcription_text = analyzed_transcription['choices'][0]['message']['content']
 
-    upload_text(recording_id, transcription_text, analyzed_transcription)
+    response, status_code = upload_text(recording_id, transcription_text, analyzed_transcription_text)
+    if status_code == 500:
+        return response, status_code
 
     # Return the output of the command
     return jsonify({
@@ -79,19 +82,21 @@ def analyze(transcription):
 
 def upload_text(id, transcription, analysis):
     try:
-        extension = '.wav'
+        extension = '.txt'
         transcription_file_name = f"{id}_transcription{extension}"
         analysis_file_name = f"{id}_analysis{extension}"
 
         # Create a blob client.
         ts_blob_client = blob_service_client.get_blob_client('text-container', transcription_file_name)
-        an_blob_client = blob_service_client.get_blob_client('text-container', analysis_file_name)
-
-        # Upload the string data to the blob.
         ts_blob_client.upload_blob(transcription)
+
+        an_blob_client = blob_service_client.get_blob_client('text-container', analysis_file_name)
         an_blob_client.upload_blob(analysis)
 
         return jsonify({'message': 'Upload successful.'}), 200
+    except ResourceExistsError as e:
+        logging.warn('Transcription and analysis already exists!')
+        return jsonify({'message': 'Upload wasn\'t happen - already exists'}), 200
     except Exception as e:
         return jsonify({'message': 'Upload failed.', 'error': str(e)}), 500
 
