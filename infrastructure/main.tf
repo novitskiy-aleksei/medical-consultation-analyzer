@@ -37,7 +37,7 @@ resource "azurerm_storage_container" "text_container" {
 }
 
 resource "azurerm_container_registry" "stage_acr" {
-  name                     = "stageacr"
+  name                     = "mcastageacr"
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   sku                      = "Basic"

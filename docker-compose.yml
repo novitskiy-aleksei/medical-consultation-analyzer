@@ -11,3 +11,12 @@ services:
       - "5005:5005"
     environment:
       - FLASK_ENV=development
+
+  rails-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    volumes:
+      - ./api:/app
+    ports:
+      - "3000:3000"
