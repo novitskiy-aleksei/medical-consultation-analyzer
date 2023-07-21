@@ -1,0 +1,5 @@
+flask
+azure-storage-blob
+openai
+openai-whisper
+python-dotenv
