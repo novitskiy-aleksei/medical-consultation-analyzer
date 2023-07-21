@@ -1,3 +1,5 @@
+require 'azure/storage/blob'
+
 class TranscriptionController < ApplicationController
 
   def initialize
@@ -18,6 +20,14 @@ class TranscriptionController < ApplicationController
       transcription: transcription,
       analysis: analysis
     }, status: :ok
+  rescue Azure::Core::Http::HTTPError => e
+    if e.type == "BlobNotFound"
+      # Handle the BlobNotFound error
+      render json: {status: 'transcription_not_found', message: 'Transcription is not found or still in progress'}, status: 200
+    else
+      # Re-raise the exception if it's a different error
+      raise e
+    end
   rescue => e
     render json: {status: 'error', message: e.message}, status: :unprocessable_entity
   end
