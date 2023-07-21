@@ -3,4 +3,7 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "articles#index"
+
+  post 'audio_records', to: 'audio_records#create'
+  get 'analysed_transcription', to: 'transcription#show'
 end
